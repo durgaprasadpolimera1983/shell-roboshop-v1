@@ -1,9 +1,22 @@
-cp rabbitmq.repo /etc/yum.repos.d/rabbitmq.repo
-validate $? "Adding RabbitMQ repo"
 
-dnf clean all >> "$logs_file" 2>&1
-dnf makecache >> "$logs_file" 2>&1
-validate $? "Refreshing repository metadata"
+[modern-erlang]
+name=RabbitMQ Modern Erlang
+baseurl=https://yum1.rabbitmq.com/erlang/el/9/$basearch
+        https://yum2.rabbitmq.com/erlang/el/9/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-erlang.E495BB49CC4BBE5B.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
 
-dnf install erlang rabbitmq-server -y >> "$logs_file" 2>&1
-validate $? "Installing RabbitMQ server"
+[rabbitmq-server]
+name=RabbitMQ Server
+baseurl=https://yum1.rabbitmq.com/rabbitmq/el/9/$basearch
+        https://yum2.rabbitmq.com/rabbitmq/el/9/$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-server.9F4587F226208342.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
