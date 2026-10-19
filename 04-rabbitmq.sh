@@ -1,99 +1,50 @@
-
 #!/bin/bash
 
-USER_ID=$(id -u)
-
-LOGS_FOLDER="/var/log/roboshop"
-LOGS_FILE="${LOGS_FOLDER}/10-rabbitmq.log"
-
+user_id=$(id -u)
+logs_folder="/var/log/roboshop"
+logs_file="${logs_folder}/${0}.log"
 R="\e[31m"
 G="\e[32m"
+Y="\e[33m"
 N="\e[0m"
 
-if [ "$USER_ID" -ne 0 ]; then
-    echo "Please run this script with sudo access."
+if [ $user_id -ne 0 ]; then
+    echo "Please run this script with sudo access.."
     exit 1
 fi
 
-mkdir -p "$LOGS_FOLDER" || exit 1
-touch "$LOGS_FILE" || exit 1
+mkdir -p $logs_folder
 
-timestamp() {
-    date "+%F %T"
+timestamp(){
+    date "+%F %T" 
 }
 
-validate() {
-    local status=$1
-    local message=$2
-
-    if [ "$status" -ne 0 ]; then
-        echo -e "$(timestamp) [ERROR] ${message}... ${R}FAILED${N}" |
-            tee -a "$LOGS_FILE"
-        echo "Check log file: $LOGS_FILE"
+validate(){
+    if [ $1 -ne 0 ]; then
+        echo -e "$(timestamp) [ERROR] ${2}..${R}FAILED${N}" | tee -a $logs_file
         exit 1
     else
-        echo -e "$(timestamp) [INFO] ${message}... ${G}SUCCESS${N}" |
-            tee -a "$LOGS_FILE"
+        echo -e "$(timestamp) [INFO] ${2}..${G}SUCCESS${N}" | tee -a $logs_file
     fi
 }
 
-echo "$(timestamp) [INFO] ===== RabbitMQ installation started =====" |
-    tee -a "$LOGS_FILE"
+echo "$(timestamp) [INFO] ==== Script started Execution =====" | tee -a $logs_file
 
-# Find repository file alongside this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cp rabbitmq.repo /etc/yum.repos.d/rabbitmq.repo
+validate $? "Adding RabbitMQ repo"
 
-# Copy repository configuration
-cp "$SCRIPT_DIR/rabbitmq.repo" /etc/yum.repos.d/rabbitmq.repo \
-    >> "$LOGS_FILE" 2>&1
-validate $? "Adding RabbitMQ repository"
+dnf install erlang rabbitmq-server -y &>> $logs_file
+validate $? "Installing RabbitMQ server"
 
-# Import official signing keys
-rpm --import \
-    https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-erlang.E495BB49CC4BBE5B.key \
-    >> "$LOGS_FILE" 2>&1
-validate $? "Importing Erlang signing key"
+systemctl enable rabbitmq-server &>> $logs_file
+systemctl start rabbitmq-server &>> $logs_file
+validate $? "Starting and Enabling RabbitMQ Server"
 
-rpm --import \
-    https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-server.9F4587F226208342.key \
-    >> "$LOGS_FILE" 2>&1
-validate $? "Importing RabbitMQ signing key"
+rabbitmqctl add_user roboshop roboshop123 &>> $logs_file 
+validate $? "Creating RabbitMQ user for Roboshop"
 
-# Refresh repository metadata
-dnf clean all >> "$LOGS_FILE" 2>&1
-dnf makecache --refresh >> "$LOGS_FILE" 2>&1
-validate $? "Refreshing repository metadata"
+rabbitmqctl set_permissions -p / roboshop ".*" ".*" ".*" &>> $logs_file
+validate $? "Setting permissions for RabbitMQ user for Roboshop"
 
-# Install packages
-dnf install -y erlang rabbitmq-server >> "$LOGS_FILE" 2>&1
-validate $? "Installing Erlang and RabbitMQ server"
-
-# Enable and start service
-systemctl enable rabbitmq-server >> "$LOGS_FILE" 2>&1
-validate $? "Enabling RabbitMQ service"
-
-systemctl start rabbitmq-server >> "$LOGS_FILE" 2>&1
-validate $? "Starting RabbitMQ service"
-
-# Check service status
-systemctl is-active --quiet rabbitmq-server
-validate $? "Checking RabbitMQ service status"
-
-# Create user if missing
-if rabbitmqctl list_users 2>> "$LOGS_FILE" |
-    awk '{print $1}' | grep -qx 'roboshop'; then
-    echo "$(timestamp) [INFO] RoboShop user already exists" |
-        tee -a "$LOGS_FILE"
-else
-    rabbitmqctl add_user roboshop 'roboshop123' \
-        >> "$LOGS_FILE" 2>&1
-    validate $? "Creating RoboShop RabbitMQ user"
-fi
-
-# Set permissions
-rabbitmqctl set_permissions -p / roboshop '.*' '.*' '.*' \
-    >> "$LOGS_FILE" 2>&1
-validate $? "Setting RoboShop user permissions"
-
-echo "$(timestamp) [INFO] ===== RabbitMQ installation completed =====" |
-    tee -a "$LOGS_FILE"
+echo "$(timestamp) [INFO] Script completed in $SECONDS seconds"
+echo "$(timestamp) [INFO] ==== Script completed Execution =====" | tee -a $logs_file
