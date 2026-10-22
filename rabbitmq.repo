@@ -1,5 +1,3 @@
-
-
 [modern-erlang]
 name=modern-erlang-el9
 baseurl=https://yum1.rabbitmq.com/erlang/el/9/$basearch

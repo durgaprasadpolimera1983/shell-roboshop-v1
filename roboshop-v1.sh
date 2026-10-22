@@ -1,4 +1,5 @@
 #!/bin/bash
+
 ami_id="ami-0055977a6e828a4f4"
 instance_type="t3.micro"
 domain_name="devopsaws92s.shop"
@@ -7,7 +8,8 @@ hosted_zone_id="Z07233552T9R7ZHDVMAP4"
 for instance in $@
 do
     echo "Creating instance: $instance"
- instance_id=$(aws ec2 run-instances \
+
+    instance_id=$(aws ec2 run-instances \
             --image-id $ami_id \
             --instance-type $instance_type \
             --security-groups "roboshop-common" "roboshop-$instance" \
@@ -15,8 +17,8 @@ do
             --query 'Instances[0].InstanceId' \
             --output text
     )
-    echo "$instance ID: $instance_id"
-echo "$instance instance ID: $instance_id"
+
+    echo "$instance instance ID: $instance_id"
 
     if [ $instance != "frontend" ]; then
         IP=$( aws ec2 describe-instances --instance-ids $instance_id \
